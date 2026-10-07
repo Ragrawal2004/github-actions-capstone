@@ -1,0 +1,63 @@
+---
+name: Reusable Docker
+
+on:
+  workflow_call:
+    inputs:
+      image_name:
+        description: "Image name, for example rounak810/capstone"
+        required: true
+        type: string
+      tag:
+        description: "Tag to publish, for example sha-abc1234"
+        required: true
+        type: string
+    secrets:
+      docker_username:
+        description: "Docker Hub username"
+        required: true
+      docker_token:
+        description: "Docker Hub access token"
+        required: true
+    outputs:
+      image_url:
+        description: "Full reference of the pushed image"
+        value: ${{ jobs.docker.outputs.image_url }}
+
+permissions:
+  contents: read
+
+jobs:
+  docker:
+    runs-on: ubuntu-latest
+    outputs:
+      image_url: ${{ steps.url.outputs.image_url }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v4
+        with:
+          username: ${{ secrets.docker_username }}
+          password: ${{ secrets.docker_token }}
+
+      - name: Build and push
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          push: true
+          tags: |
+            ${{ inputs.image_name }}:${{ inputs.tag }}
+            ${{ inputs.image_name }}:latest
+
+      - name: Publish the image reference
+        id: url
+        env:
+          IMAGE_NAME: ${{ inputs.image_name }}
+          TAG: ${{ inputs.tag }}
+        run: |
+          echo "image_url=docker.io/${IMAGE_NAME}:${TAG}" >> "$GITHUB_OUTPUT"

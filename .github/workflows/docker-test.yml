@@ -1,0 +1,25 @@
+---
+name: Docker Test (temporary)
+
+on: workflow_dispatch
+
+permissions:
+  contents: read
+
+jobs:
+  docker:
+    uses: ./.github/workflows/reusable-docker.yml
+    with:
+      image_name: rounak810/capstone
+      tag: manual-test
+    secrets:
+      docker_username: ${{ secrets.DOCKER_USERNAME }}
+      docker_token: ${{ secrets.DOCKER_TOKEN }}
+
+  show:
+    needs: docker
+    runs-on: ubuntu-latest
+    steps:
+      - name: Show the returned image reference
+        run: |
+          echo "Image: ${{ needs.docker.outputs.image_url }}"
