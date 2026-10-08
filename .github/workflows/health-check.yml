@@ -1,0 +1,66 @@
+---
+name: Health Check
+
+on:
+  schedule:
+    - cron: "0 */12 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  IMAGE: rounak810/capstone:latest
+
+jobs:
+  health:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Pull the published image
+        run: |
+          docker pull "$IMAGE"
+
+      - name: Start the container
+        run: |
+          docker run -d --name capstone-health -p 8000:8000 "$IMAGE"
+
+      - name: Wait for /health to answer
+        id: probe
+        run: |
+          for i in $(seq 1 10); do
+            if curl --fail --silent --show-error http://localhost:8000/health; then
+              echo ""
+              echo "Healthy after $i attempt(s)"
+              exit 0
+            fi
+            echo "Attempt $i failed, waiting 3 seconds"
+            sleep 3
+          done
+          echo "The service never became healthy"
+          exit 1
+
+      - name: Write the summary
+        if: always()
+        env:
+          RESULT: ${{ steps.probe.outcome }}
+        run: |
+          {
+            echo "## Health check"
+            echo ""
+            echo "| Item | Value |"
+            echo "|---|---|"
+            echo "| Image | \`$IMAGE\` |"
+            echo "| Result | $RESULT |"
+            echo "| Checked at | $(date -u '+%Y-%m-%d %H:%M UTC') |"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Show container logs if something failed
+        if: failure()
+        run: |
+          docker logs capstone-health
+
+      - name: Remove the container
+        if: always()
+        run: |
+          docker rm -f capstone-health
