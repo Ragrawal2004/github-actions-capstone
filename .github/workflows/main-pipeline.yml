@@ -29,6 +29,10 @@ jobs:
   docker:
     needs: [build-test, meta]
     uses: ./.github/workflows/reusable-docker.yml
+    # The called workflow can't have more permission than this job grants
+    permissions:
+      contents: read
+      security-events: write
     with:
       image_name: rounak810/capstone
       tag: sha-${{ needs.meta.outputs.short_sha }}
